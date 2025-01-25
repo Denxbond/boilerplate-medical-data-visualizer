@@ -3,58 +3,86 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-# 1
-df = None
+def load_and_process_data():
+    # Import data
+    df = pd.read_csv('medical_examination.csv')
 
-# 2
-df['overweight'] = None
+    # Add 'overweight' column
+    df['overweight'] = ((df['weight'] / (df['height'] / 100) ** 2) > 25).astype(int)
 
-# 3
+    # Normalize data by making 0 good and 1 bad
+    df['cholesterol'] = (df['cholesterol'] > 1).astype(int)
+    df['gluc'] = (df['gluc'] > 1).astype(int)
 
+    return df
 
-# 4
-def draw_cat_plot():
-    # 5
-    df_cat = None
+def draw_cat_plot(df):
+    # Create DataFrame for cat plot
+    df_cat = pd.melt(
+        df,
+        id_vars=['cardio'],
+        value_vars=['cholesterol', 'gluc', 'smoke', 'alco', 'active', 'overweight']
+    )
 
+    # Group and reformat the data to split by 'cardio'
+    df_cat = (
+        df_cat
+        .groupby(['cardio', 'variable', 'value'])
+        .size()
+        .reset_index(name='total')
+    )
 
-    # 6
-    df_cat = None
-    
+    # Draw the catplot
+    fig = sns.catplot(
+        x='variable',
+        y='total',
+        hue='value',
+        col='cardio',
+        data=df_cat,
+        kind='bar'
+    ).fig
 
-    # 7
-
-
-
-    # 8
-    fig = None
-
-
-    # 9
-    fig.savefig('catplot.png')
     return fig
 
+def draw_heat_map(df):
+    # Clean the data
+    df_heat = df[
+        (df['ap_lo'] <= df['ap_hi']) &
+        (df['height'] >= df['height'].quantile(0.025)) &
+        (df['height'] <= df['height'].quantile(0.975)) &
+        (df['weight'] >= df['weight'].quantile(0.025)) &
+        (df['weight'] <= df['weight'].quantile(0.975))
+    ]
 
-# 10
-def draw_heat_map():
-    # 11
-    df_heat = None
+    # Calculate the correlation matrix
+    corr = df_heat.corr()
 
-    # 12
-    corr = None
+    # Generate a mask for the upper triangle
+    mask = np.triu(np.ones_like(corr, dtype=bool))
 
-    # 13
-    mask = None
+    # Set up the matplotlib figure
+    fig, ax = plt.subplots(figsize=(10, 10))
 
+    # Draw the heatmap
+    sns.heatmap(
+        corr,
+        mask=mask,
+        annot=True,
+        fmt='.1f',
+        square=True,
+        cbar_kws={'shrink': .5},
+        ax=ax
+    )
 
-
-    # 14
-    fig, ax = None
-
-    # 15
-
-
-
-    # 16
-    fig.savefig('heatmap.png')
     return fig
+
+if __name__ == "__main__":
+    df = load_and_process_data()
+
+    # Generate and save the categorical plot
+    cat_plot = draw_cat_plot(df)
+    cat_plot.savefig('catplot.png')
+
+    # Generate and save the heat map
+    heat_map = draw_heat_map(df)
+    heat_map.savefig('heatmap.png')
